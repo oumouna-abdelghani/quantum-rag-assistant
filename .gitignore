@@ -1,0 +1,19 @@
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local vector storage
+chroma_db/
+*.sqlite3
+
+# Downloaded corpora (re-created by `python ingest.py`)
+data/raw/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

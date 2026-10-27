@@ -1,0 +1,66 @@
+# sources.yaml - what ingest.py puts into the `quantum_kb` collection.
+# Toggle groups with `enabled`, add or remove entries freely, then re-run:
+#     python ingest.py
+# Unchanged chunks are skipped thanks to SHA-256 hashing, so re-runs are cheap.
+
+qiskit_docs:
+  enabled: true
+  repo: https://github.com/Qiskit/documentation
+  # Folders fetched with a sparse checkout (the full repo is huge: API reference).
+  paths:
+    - learning/courses     # IBM Quantum Learning: theory courses (best explanations)
+    - learning/modules     # Qiskit in Classrooms notebooks
+    - docs/guides          # how-to guides (circuits, transpiler, primitives, noise...)
+    - docs/tutorials       # end-to-end tutorials
+  extensions: [".mdx", ".md", ".ipynb"]
+  exclude:                 # case-insensitive substrings of the file path
+    - changelog
+    - release-notes
+    - /exam.mdx
+    - checkpoint
+
+arxiv:
+  enabled: true
+  papers:
+    - id: "1801.00862"
+      title: "Quantum Computing in the NISQ era and beyond (Preskill)"
+    - id: "quant-ph/9508027"
+      title: "Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer (Shor)"
+    - id: "quant-ph/9605043"
+      title: "A fast quantum mechanical algorithm for database search (Grover)"
+    - id: "1304.3061"
+      title: "A variational eigenvalue solver on a photonic quantum processor (Peruzzo et al., VQE)"
+    - id: "1411.4028"
+      title: "A Quantum Approximate Optimization Algorithm (Farhi et al., QAOA)"
+    - id: "2012.09265"
+      title: "Variational Quantum Algorithms (Cerezo et al.)"
+
+wikipedia:
+  enabled: true
+  pages:
+    - Qubit
+    - Bloch sphere
+    - Quantum entanglement
+    - Quantum superposition
+    - Quantum logic gate
+    - Quantum circuit
+    - Quantum Fourier transform
+    - Quantum phase estimation algorithm
+    - Shor's algorithm
+    - Grover's algorithm
+    - Deutsch–Jozsa algorithm
+    - Variational quantum eigensolver
+    - Quantum approximate optimization algorithm
+    - Quantum teleportation
+    - Quantum decoherence
+    - Quantum error correction
+    - Noisy intermediate-scale quantum era
+    - Density matrix
+    - Hamiltonian (quantum mechanics)
+    - Quantum supremacy
+
+local:
+  enabled: true
+  # Anything you drop in these folders (pdf, md, mdx, txt, ipynb, csv) joins the knowledge base.
+  paths:
+    - data/raw/local

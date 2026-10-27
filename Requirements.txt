@@ -1,0 +1,17 @@
+# Direct dependencies, pinned to the versions this project was tested with
+# (Python 3.12). Transitive dependencies are resolved by pip; a full `pip freeze`
+# is deliberately not used because it would hard-code Linux-only packages and
+# break installation on Windows.
+google-genai==2.33.0
+chromadb==1.5.9
+langchain-core==1.7.0
+langchain-community==0.4.2
+langchain-text-splitters==1.1.3
+pypdf==6.21.3
+nbformat==5.11.1
+rank-bm25==0.2.2
+numpy==2.5.4
+httpx==0.28.1
+requests==2.34.2
+PyYAML==6.0.3
+python-dotenv==1.2.4
