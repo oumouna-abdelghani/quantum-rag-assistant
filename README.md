@@ -22,7 +22,7 @@ The pipeline is written explicitly rather than hidden inside a black-box chain: 
 - **Language:** Python 3.10+
 - **Vector Database:** ChromaDB (persistent, cosine space)
 - **Embeddings:** Google Gemini API (`gemini-embedding-001`, 768 dimensions, L2-normalized)
-- **Generation:** Google Gemini API (`gemini-3.5-flash-lite`, configurable)
+- **Generation:** Google Gemini API (`gemini-1.5-flash-lite`, configurable)
 - **Orchestration helpers:** LangChain (`langchain-core`, `langchain-community`, `langchain-text-splitters`)
 - **Sparse retrieval:** `rank-bm25`
 - **Other tools:** NumPy, pypdf, nbformat, PyYAML, SHA-256 hashing
