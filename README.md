@@ -1,4 +1,9 @@
-# Quantum RAG Assistant ⚛️
+# Quanta: Full-Stack RAG Assistant for Quantum Computing ⚛️
+
+Streaming, source-cited answers over a custom knowledge base. Gemini, ChromaDB, MMR + BM25 hybrid retrieval, FastAPI, Next.js.
+
+![Quanta UI Home Screen](docs/screenshots/hero-ui.png)
+![Quanta answering a question with citations and rendered math](docs/screenshots/bell-state-answer.png)
 
 A retrieval-augmented tutor for quantum computing theory and Qiskit. It answers from a curated knowledge base (IBM Quantum Learning courses, Qiskit guides and tutorials, research papers, Wikipedia) and from files you upload, cites the passages it used, and tells you clearly when it falls back to general knowledge.
 
@@ -16,15 +21,18 @@ The pipeline is written explicitly rather than hidden inside a black-box chain: 
 - **Optional BM25 hybrid:** dense and keyword rankings fused with Reciprocal Rank Fusion, useful for exact identifiers such as `RealAmplitudes` or `CNOT`.
 - **Two collections:** a curated knowledge base and a private `user_uploads` collection, searched together.
 - **Persistent local storage:** ChromaDB on disk, no server, no Docker.
+- **Web interface (Quanta):** a Next.js chat UI with streaming answers, markdown and highlighted Qiskit code, clickable citation pills, a source drawer showing section path and similarity score, drag-and-drop file upload and a ghost bot avatar, served by a small FastAPI layer (`main.py`).
 
 ## Tech Stack
 
 - **Language:** Python 3.10+
 - **Vector Database:** ChromaDB (persistent, cosine space)
 - **Embeddings:** Google Gemini API (`gemini-embedding-001`, 768 dimensions, L2-normalized)
-- **Generation:** Google Gemini API (`gemini-1.5-flash-lite`, configurable)
+- **Generation:** Google Gemini API (`gemini-3.5-flash-lite`, configurable)
 - **Orchestration helpers:** LangChain (`langchain-core`, `langchain-community`, `langchain-text-splitters`)
 - **Sparse retrieval:** `rank-bm25`
+- **API layer:** FastAPI + Uvicorn (newline-delimited JSON streaming)
+- **Frontend:** Next.js (App Router), React, Tailwind CSS, Framer Motion, `react-markdown` + KaTeX, `bot-avatars`
 - **Other tools:** NumPy, pypdf, nbformat, PyYAML, SHA-256 hashing
 
 ## System Architecture
@@ -140,7 +148,7 @@ python ingest.py                  # everything in sources.yaml
 ```
 Re-running is cheap: unchanged chunks are skipped. Useful flags: `--limit N`, `--prune`, `--reset` (required after changing the embedding model or dimension), `--update` (pull the latest Qiskit docs).
 
-### 5. Chat
+### 5. Chat in the terminal
 ```bash
 python cli.py
 ```
@@ -155,6 +163,25 @@ python cli.py
 | `/clear_uploads` | Delete your uploads |
 
 **Calibrating the threshold:** similarity scores depend on the embedding model and your corpus. Ask a few on-topic and a few off-topic questions, compare their best scores with `/sources`, and set `RELEVANCE_THRESHOLD` between the two groups.
+
+### 6. Chat in the browser (Quanta web interface)
+
+Two processes: the Python engine and the Next.js app (Node.js 20.9+ required).
+
+```bash
+# terminal 1 - Python RAG engine on http://127.0.0.1:8000
+uvicorn main:app --port 8000
+
+# terminal 2 - web interface on http://localhost:3000
+cd web
+npm install
+npm run dev
+```
+Open http://localhost:3000. The status badge in the top bar turns green when the engine is reachable and shows the generation model. Settings (`web/.env.example`): `QUANTA_API_URL` if the engine is not on port 8000, and `NEXT_PUBLIC_QUANTA_LOGO` to replace the ghost with your own agent icon (put the image in `web/public/`).
+
+The browser talks to Next.js route handlers (`/api/chat`, `/api/upload`, `/api/status`), which proxy to the engine, so no CORS setup is needed. The engine binds to localhost only and has no authentication: do not expose it to a network as is.
+
+**Engine API** (`main.py`): `GET /` health, `POST /query` streams NDJSON events (`meta` with sources, then `token`s, then `done`), `POST /upload`, `GET /documents`, `DELETE /uploads`. Interactive docs at http://127.0.0.1:8000/docs.
 
 ## Configuration
 
@@ -181,32 +208,38 @@ quantum-rag-assistant/
 ├── store.py         # ChromaDB, hash sync, MMR, BM25 hybrid, relevance gate
 ├── ingest.py        # knowledge-base builder (+ upload ingestion)
 ├── rag.py           # prompts, retrieval + generation, citation extraction
-├── cli.py           # interactive chat
+├── cli.py           # interactive chat (terminal)
+├── main.py          # FastAPI server: streaming /query, /upload, /documents
 ├── sources.yaml     # dataset definition
-└── requirements.txt
+├── requirements.txt
+└── web/             # Next.js interface "Quanta"
+    ├── app/                 # page.tsx, layout, api/{chat,upload,status} proxy routes
+    ├── components/          # quanta-logo, chat-input, chat-message, source-drawer, markdown, ...
+    └── lib/                 # NDJSON stream client, types, helpers
 ```
 
 ## Phase Progression
 
 This project reuses the lessons of the [Hybrid GraphRAG Movie & TV Recommendation Engine](https://github.com/YOUR-USERNAME/hybrid-graphrag-recommender): explicit embeddings, SHA-256 incremental synchronization, asymmetric task types, deterministic pipelines instead of LLM-generated queries, and optional agent memory.
 
-### Stage 1 - Vector RAG Backend and CLI (current)
+### Stage 1 - Vector RAG Backend and CLI (done)
 Header-aware chunking, explicit Gemini embeddings, hash-synchronized dual ChromaDB collections, MMR retrieval with a relevance gate and labeled fallback, optional BM25 hybrid, grounded Gemini answers with citations, and a terminal interface with file upload.
 
 Why no GraphRAG here: quantum learning material is conceptual, unstructured prose where explanatory chunks matter more than extracted entity edges, and LLM-based graph extraction would add cost and noise for little gain on single-topic questions.
 
-### Stage 2 - Interface, Memory and Evaluation (planned)
+### Stage 2, Part 1 - Web Interface (current)
+FastAPI streaming layer plus a Next.js chat UI: animated hero with a cursor lens on the headline and cycling greetings, floating composer, streamed markdown answers with highlighted code, clickable citations that open a source drawer, file upload, hybrid toggle and a status badge. State is kept in the browser only (no database, no agent memory).
+
+### Stage 2, Part 2 - Evaluation and extras (planned)
 See below.
 
 ## Future Improvements
 
-**Stage 2**
-
-- **Web interface:** a Streamlit prototype, then a Next.js front end on top of a FastAPI streaming endpoint (`RagPipeline.ask` already accepts an `on_token` callback), with drag-and-drop upload, clickable source cards and sidebar controls for top-k and temperature.
-- **Long-term memory:** conversation memory with follow-up question rewriting into standalone queries before retrieval, persistent learner preferences (level, preferred framework), and auditable retrieval traces.
-- **Learning-path concept graph:** a small hand-curated graph of prerequisites (for example Grover → amplitude amplification) to recommend what to study next, built deterministically as in the movie recommender.
 - **Benchmark evaluation:** a labeled question set to compare chunk sizes, plain similarity vs MMR vs BM25 hybrid, and threshold choices on retrieval hit-rate and answer faithfulness.
-- **Deployment:** hosted vector storage and a deployed front end.
+- **Query rewriting for follow-ups:** turn "explain that more" into a standalone search query before retrieval (the UI already sends recent turns for conversational generation).
+- **Learning-path concept graph:** a small hand-curated graph of prerequisites (for example Grover → amplitude amplification) to recommend what to study next, built deterministically as in the movie recommender.
+- **Optional long-term memory:** persistent learner preferences and auditable retrieval traces (the approach from the movie recommender), deliberately left out of this version.
+- **Deployment:** hosted vector storage, the engine behind authentication, and the front end on Vercel.
 
 ## Notes
 

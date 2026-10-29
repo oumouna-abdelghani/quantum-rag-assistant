@@ -49,6 +49,7 @@ class Settings:
     embedding_dim: int
     temperature: float
     max_output_tokens: int
+    thinking_level: str           # "minimal" | "low" | "medium" | "high"
 
     # --- Embedding requests / retry ---------------------------------------
     embed_batch_size: int
@@ -90,6 +91,7 @@ class Settings:
             embedding_dim=_read("EMBEDDING_DIM", 768, int),
             temperature=_read("GENERATION_TEMPERATURE", 0.2, float),
             max_output_tokens=_read("MAX_OUTPUT_TOKENS", 2048, int),
+            thinking_level=_read("THINKING_LEVEL", "low"),
             embed_batch_size=_read("EMBED_BATCH_SIZE", 32, int),
             embed_min_interval=_read("EMBED_MIN_INTERVAL", 0.6, float),
             max_retries=_read("MAX_RETRIES", 6, int),

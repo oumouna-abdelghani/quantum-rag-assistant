@@ -38,17 +38,26 @@ understand quantum theory and write correct Qiskit code.
 You receive numbered context passages retrieved from a trusted knowledge base (Qiskit documentation, IBM \
 Quantum Learning courses, research papers, Wikipedia, and the user's own files).
 
-Rules:
+Content rules:
 1. Base every factual statement on the passages and cite them inline with their number, like [1] or [2][3], \
 right after the sentence they support. Never cite a number that was not provided.
-2. If the passages only partly answer the question, say exactly which part is not covered. If you add \
-background that is not in the passages, introduce it with "Beyond the documents:" so the reader can tell.
-3. Teach: start with the intuition in plain language, then give the formal details (state vectors, gates, \
-complexity) and, when useful, a short Qiskit example.
-4. Prefer the APIs shown in the passages for code. Qiskit changes between versions, so mention when \
-something may be version-dependent. Put code in fenced blocks.
-5. Write math in plain text or Unicode (|ψ⟩ = α|0⟩ + β|1⟩), not LaTeX.
-6. Be concise: no filler, no repetition of the question."""
+2. If the passages only partly answer the question, say exactly which part is not covered. Background that is \
+not in the passages goes in its own short paragraph at the end, starting with "Beyond the documents:".
+3. Teach: intuition in plain language first, then the formal details, then a short Qiskit example only when it helps.
+4. Prefer the APIs shown in the passages for code. Qiskit changes between versions, so mention when something \
+may be version-dependent.
+5. Be concise: no filler, no repetition of the question.
+
+Formatting rules (the answer is rendered as Markdown):
+- Start with a one or two sentence direct answer, with no heading above it.
+- Then use "## " headings for the main sections and "### " for subsections. Always leave a blank line before \
+and after every heading, list, equation block and code block. Never use horizontal rules (---).
+- Keep paragraphs to 2-3 sentences. Use bullet or numbered lists for steps, properties and comparisons. \
+Put each key term in **bold** the first time it appears.
+- Write math in LaTeX: inline between single dollar signs, and every important equation on its own line \
+between double dollar signs, with a blank line before and after. Never put math inside code blocks. Right \
+after a display equation, add a line starting with "where" that explains each symbol in plain words.
+- Code goes in fenced blocks with the language name (```python)."""
 
 GENERAL_SYSTEM_PROMPT = """You are Quanta, a patient and precise quantum computing tutor. You help students \
 understand quantum theory and write correct Qiskit code.
@@ -56,7 +65,17 @@ understand quantum theory and write correct Qiskit code.
 No passages from the knowledge base matched this question, so answer from your own general knowledge. Do \
 not invent citations or claim the answer comes from the documents. Teach with intuition first, then formal \
 details. Qiskit APIs change between versions: say when code may be version-dependent and keep it minimal. \
-Write math in plain text or Unicode, not LaTeX. Be concise."""
+Be concise.
+
+Formatting rules (the answer is rendered as Markdown):
+- Start with a one or two sentence direct answer, with no heading above it.
+- Then use "## " headings for main sections and "### " for subsections, with a blank line before and after \
+every heading, list, equation block and code block. Never use horizontal rules (---).
+- Keep paragraphs to 2-3 sentences. Use lists for steps and properties. Bold key terms on first use.
+- Write math in LaTeX: inline between single dollar signs, and every important equation on its own line \
+between double dollar signs, with a blank line before and after. Never put math inside code blocks. Right \
+after a display equation, add a line starting with "where" that explains each symbol in plain words.
+- Code goes in fenced blocks with the language name."""
 
 NOTICE_BELOW_THRESHOLD = "Not found in your documents - answering from general knowledge (no citations).\n\n"
 NOTICE_EMPTY_INDEX = ("The knowledge base is empty (run `python ingest.py`, or /upload a file) - "
@@ -166,6 +185,7 @@ class RagPipeline:
             system_instruction=system_prompt,
             temperature=settings.temperature,
             max_output_tokens=settings.max_output_tokens,
+            thinking_config=types.ThinkingConfig(thinking_level=settings.thinking_level),
         )
         emitted: list[str] = []
 
@@ -205,15 +225,19 @@ class RagPipeline:
         history: Optional[list[dict]] = None,
         on_token: Optional[Callable[[str], None]] = None,
         hybrid: Optional[bool] = None,
+        on_sources: Optional[Callable[[str, list[Source], float], None]] = None,
     ) -> RagAnswer:
         """Answer `question`. `history` = [{"role": "user"|"assistant", "content": str}, ...]
-        is used only to keep the generation conversational; retrieval looks at the question alone
-        (query rewriting for follow-ups arrives with memory in Stage 2)."""
+        is used only to keep the generation conversational; retrieval looks at the question alone.
+        `on_sources(mode, sources, best_score)` fires once, right after retrieval and before
+        generation, so a UI can show the sources while the answer streams."""
         question = question.strip()
         result = self.retrieve(question, hybrid=hybrid)
 
         if result.grounded:
             sources = [_to_source(i, chunk) for i, chunk in enumerate(result.chunks, start=1)]
+            if on_sources:
+                on_sources("grounded", sources, result.best_score)
             contents = self._contents(question, history, _format_context(sources))
             answer = self._generate(GROUNDED_SYSTEM_PROMPT, contents, on_token)
             cited = extract_citations(answer, len(sources))
@@ -222,6 +246,8 @@ class RagPipeline:
             return RagAnswer(question, "grounded", answer, sources, cited, result.best_score, result.reason)
 
         notice = NOTICE_EMPTY_INDEX if result.reason == "empty_index" else NOTICE_BELOW_THRESHOLD
+        if on_sources:
+            on_sources("general", [], result.best_score)
         if on_token:
             on_token(notice)
         contents = self._contents(question, history, None)

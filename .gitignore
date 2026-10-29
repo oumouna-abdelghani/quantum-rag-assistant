@@ -6,6 +6,8 @@
 __pycache__/
 *.pyc
 
+.next
+
 # Local vector storage
 chroma_db/
 *.sqlite3
@@ -17,3 +19,12 @@ data/raw/
 .vscode/
 .idea/
 .DS_Store
+
+# Node / Next.js (node_modules is the big one)
+node_modules/
+web/.env.local
+.env.local
+*.tsbuildinfo
+
+# Files users upload through the app
+data/uploads/
